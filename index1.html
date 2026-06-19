@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask the FDA Sources - a tiny RAG demo</title>
+<style>
+  :root{
+    --ink:#15233B;--ink-soft:#3A4A66;--coral:#C2412B;--coral-soft:#F3D9D2;
+    --green:#2F7D5B;--green-soft:#DCEEE4;--amber:#C98A2B;--parch:#F3EEE3;
+    --line:#E2DCCE;--paper:#FFFFFF;--muted:#6B7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--parch);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;padding:26px 18px 60px}
+  .wrap{max-width:880px;margin:0 auto}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--coral);margin:0 0 6px}
+  h1{font-size:30px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
+  .sub{font-size:16px;color:var(--ink-soft);margin:0 0 14px;max-width:620px}
+  .banner{display:flex;gap:10px;align-items:flex-start;background:#FBF6EC;border:1px solid var(--line);
+    border-left:4px solid var(--amber);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--ink-soft);margin-bottom:22px}
+  .banner b{color:var(--ink)}
+  .ask{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 16px 18px;box-shadow:0 6px 20px rgba(21,35,59,.06)}
+  .ask h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 11px;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px}
+  .chip{font:inherit;font-size:13.5px;cursor:pointer;border:1px solid var(--line);background:var(--parch);
+    color:var(--ink);padding:7px 12px;border-radius:999px}
+  .chip:hover{background:#fff;border-color:var(--coral);color:var(--coral)}
+  .row{display:flex;gap:10px}
+  .row input{flex:1;font:inherit;font-size:15px;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--parch)}
+  .row input:focus{outline:2px solid var(--ink);outline-offset:1px;background:#fff}
+  .row button{font:inherit;font-weight:700;font-size:15px;cursor:pointer;border:none;background:var(--ink);color:#fff;padding:11px 20px;border-radius:10px}
+  .row button:hover{background:#0E1A2E}
+
+  #result{margin-top:18px}
+  .status{font-size:13px;font-weight:600;color:var(--ink-soft);display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+  .dot.good{background:var(--green)} .dot.warn{background:var(--amber)}
+  .answer{background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--green);
+    border-radius:10px;padding:15px 16px;font-size:16px;color:var(--ink);box-shadow:0 4px 14px rgba(21,35,59,.05)}
+  .answer.gap{border-left-color:var(--amber);color:var(--ink-soft);font-style:italic}
+  .cite{display:inline-block;font-size:12px;font-weight:700;color:var(--green);background:var(--green-soft);border-radius:6px;padding:1px 6px;vertical-align:baseline}
+  .sources-h{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:18px 0 8px}
+  .src{display:flex;gap:11px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 6px rgba(21,35,59,.04)}
+  .src-n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .src-title{font-weight:700;font-size:14px;margin-bottom:3px}
+  .src-tag{font-size:11px;font-weight:700;color:var(--coral);background:var(--coral-soft);border-radius:5px;padding:1px 6px;margin-left:4px}
+  .src-text{font-size:13.5px;color:#33405A}
+  .src-link{font-size:12.5px;font-weight:600;color:#1155CC;text-decoration:none;display:inline-block;margin-top:5px}
+  .src-link:hover{text-decoration:underline}
+
+  details.kb{margin-top:26px}
+  details.kb summary{cursor:pointer;font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);list-style:none}
+  details.kb summary::-webkit-details-marker{display:none}
+  #corpusList{margin-top:12px}
+  footer{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;font-size:13px;color:var(--ink-soft)}
+  footer b{color:var(--ink)}
+  @media (max-width:620px){h1{font-size:25px};.row{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Beyond the Benchmark &middot; tiny RAG demo</p>
+  <h1>Ask the FDA sources</h1>
+  <p class="sub">Type a question. The app searches a set of real FDA documents, then answers using only what it found, and cites it. The point is not the answer, it is that you can check it.</p>
+
+  <div class="banner">
+    <span>&#9888;</span>
+    <span><b>Teaching demo, not medical advice.</b> It only reports what public FDA sources say, and it will not make personal health decisions for you. For your own care, talk to a licensed professional.</span>
+  </div>
+
+  <section class="ask">
+    <h2>Ask a question, or pick one</h2>
+    <div class="chips" id="chips"></div>
+    <div class="row">
+      <input id="q" type="text" placeholder="e.g. What are the FDA recall classes?" aria-label="Your question">
+      <button id="ask">Ask</button>
+    </div>
+  </section>
+
+  <div id="result" hidden>
+    <div class="status" id="status"></div>
+    <div class="answer" id="answer"></div>
+    <div class="sources-h">Sources it used</div>
+    <div id="sources"></div>
+  </div>
+
+  <details class="kb">
+    <summary>The knowledge base (<span id="count">0</span> FDA sources it can cite)</summary>
+    <div id="corpusList"></div>
+  </details>
+
+  <footer>
+    <b>How this works:</b> real retrieval (BM25) finds the matching FDA passages, then a model writes an answer using only those passages and cites them. Swap in fresh data with <b>scripts/fetch_corpus.mjs</b>. Connect a model by setting <b>WORKER_URL</b> in <b>config.js</b>. See the README.
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="corpus.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
