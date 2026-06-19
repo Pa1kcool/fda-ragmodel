@@ -1,97 +1,110 @@
-# Ask the FDA Sources — a tiny RAG demo
+# Memory vs Sources: a tiny RAG demo on FDA data
 
-A small, real retrieval-augmented generation (RAG) chatbot for the workshop. It searches a set
-of **real, public FDA documents**, answers using **only** what it found, and **cites the sources**
-so the room can check the answer. The lesson is the habit: in high-stakes work, trust the answer
-you can verify, not the one that merely sounds confident.
+A small, real **RAG** (retrieval-augmented generation) chatbot built for the FOR 2026 workshop
+*Beyond the Benchmark*. You ask one question and get **two answers side by side**: one from the
+model's memory with no sources, and one **grounded in real FDA documents with citations**. The
+point is not the answer, it is that you can check it.
 
-It is built for the constraint you wanted: the page is **static (GitHub Pages)**, and the model
-runs behind a tiny **free proxy** so your API key is never exposed.
+**Live demo:** https://pa1kcool.github.io/fda-ragmodel/
 
-## What is in here
-- `index.html`, `app.js`, `config.js` — the static site (deploy to GitHub Pages).
-- `corpus.js` — the knowledge base. Ships with safe FDA facts; replace with live data (below).
-- `scripts/fetch_corpus.mjs` — pulls **real openFDA** drug labels and food recalls into `corpus.js`.
-- `cloudflare-worker.js` — the free proxy that holds your key and calls the model.
+![The demo home page](screenshots/home.png)
 
-## How it works
-1. You type a question.
-2. The page runs **BM25 retrieval** over `corpus.js` and picks the best few sources. (This is real
-   retrieval; no key, instant, and explainable.)
-3. Those sources are sent to the Worker, which asks a hosted model to answer **using only them**,
-   with inline citations like `[1]`.
-4. The page shows the answer and the exact sources, with links.
+Ask a question and the two answers appear next to each other. The left side answers from memory
+with nothing to verify. The right side retrieves real FDA passages, answers only from them, and
+cites each one so you can open it.
 
-If no model is connected, it runs in **evidence-only mode**: it still retrieves and shows the cited
-sources, so the demo never hard-fails in the room.
+![Memory vs sources, side by side](screenshots/compare.png)
 
 ---
 
-## Setup
+## What it teaches
 
-### 1. Get real data (optional but recommended)
-From the project folder, with Node 18+ and internet:
-```
-node scripts/fetch_corpus.mjs
-```
-This overwrites `corpus.js` with live openFDA drug labels (with boxed warnings) and recent food
-recalls. Re-run any time for fresh data. openFDA needs no key.
+A fluent answer and a grounded answer can look equally confident. Only one lets you check where it
+came from. In high-stakes fields, that difference is everything. This demo makes it visible on real,
+public FDA data.
 
-### 2. Deploy the page to GitHub Pages
-- Put `index.html`, `app.js`, `config.js`, `corpus.js` in a repo (root or `/docs`).
-- Repo → Settings → Pages → deploy from your branch.
-- Your site appears at `https://<you>.github.io/<repo>/`.
+## How it works (RAG in four steps)
 
-### 3. Stand up the free model proxy (Cloudflare Worker)
-No command line needed.
-1. Get a **free API key** from a provider with a free tier (for example Groq at console.groq.com,
-   or Google AI Studio). Confirm the current model name in their docs.
-2. dash.cloudflare.com → **Workers & Pages** → **Create** → **Create Worker** → name it
-   (e.g. `fda-rag-proxy`) → **Deploy**.
-3. **Edit code**: paste the contents of `cloudflare-worker.js`, then **Deploy**.
-   - If you are not using Groq, change `API_URL` and `MODEL` at the top first.
-4. Worker → **Settings → Variables → Add variable**, type **Secret**, name **`LLM_API_KEY`**,
-   paste your key, **Save and deploy**.
-5. Copy the Worker URL (looks like `https://fda-rag-proxy.<you>.workers.dev`).
+1. **You ask a question.**
+2. **Retrieve.** The page searches its FDA document set and pulls the few most relevant passages,
+   using BM25 (a classic keyword-relevance method). No server, instant, and explainable.
+3. **Augment.** Those passages are sent to the model with the instruction to answer using only them.
+4. **Generate.** The model writes an answer grounded in those passages and cites them like `[1]`.
 
-### 4. Connect the page to the proxy
-- Open `config.js`, set `WORKER_URL` to your Worker URL, commit. Done.
+The "from memory" side deliberately skips steps 2 and 3, so you can see what RAG adds.
 
-### Test locally before deploying
-Open a terminal in the project folder:
-```
-python3 -m http.server 8000
-```
-Then visit `http://localhost:8000`. (Opening the file directly also works because the data is a
-plain script, but a local server is closer to production.)
+## The stack (and why there is no Python)
+
+Everything is JavaScript. RAG is an architecture, not a language.
+
+- **Browser** (`index.html`, `app.js`): plain HTML, CSS, and vanilla JS. Runs the retrieval and shows the answers.
+- **Data prep** (`scripts/fetch_corpus.mjs`): Node.js. Pulls live data from openFDA.
+- **Proxy** (`cloudflare-worker.js`): a Cloudflare Worker (JavaScript) that holds the API key so the public page never exposes it, and calls the model.
+
+The only Python you might use is `python3 -m http.server` to preview locally, which is just a throwaway
+web server. Any static server works.
+
+## The data
+
+Public **openFDA** data: drug label excerpts (including boxed warnings) and recent food recalls, plus
+a dozen short plain-language reference facts so definition questions answer cleanly. It is real,
+public, free, and citable, and it carries genuine stakes without being personal medical advice.
 
 ---
 
-## Using it in the workshop
-- Drive it on the projector, and share the GitHub Pages link so people can try it on their phones.
-- Show a question, read the answer, then **open a cited source** to verify it. That click is the point.
-- Ask something the corpus does not cover, and show it say **"the sources do not cover this"** instead
-  of inventing an answer. That refusal is the hero.
-- Then let groups type their own questions.
+## Reproduce it yourself
 
-### Paired activity: "Cite or accept?"
-Each group takes a field (law, medicine, journalism, education) and a short stack of real decisions
-in it. For each decision they answer one question: **would you act on the AI's answer without a
-source, or not?** They place each decision on a line from "fine to accept" to "must cite or do not
-use," then draw their field's line: the level of stakes above which **no AI answer is usable without
-a checkable source**. Each group reports its line and the one example that flipped the moment a
-citation was required. The takeaway: in high-stakes work, a citation is not a nicety, it is the line
-between usable and dangerous.
+You need a free GitHub account, a free Cloudflare account, a free model API key (for example Groq at
+console.groq.com), and Node 18+.
+
+**1. Get the files and load real data**
+```bash
+node scripts/fetch_corpus.mjs        # writes corpus.js from live openFDA (Node 18+, internet)
+python3 -m http.server 8000          # optional local preview at http://localhost:8000
+```
+
+**2. Deploy the model proxy (Cloudflare Worker)**
+```bash
+npm install -g wrangler
+wrangler login
+wrangler deploy                      # prints your Worker URL
+wrangler secret put LLM_API_KEY      # paste your model API key when prompted
+```
+The repo includes a `wrangler.toml`. If you are not using Groq, change `API_URL` and `MODEL` at the
+top of `cloudflare-worker.js` first.
+
+**3. Connect the page to the proxy**
+Open `config.js` and set `WORKER_URL` to your Worker URL.
+
+**4. Publish the page on GitHub Pages**
+```bash
+git init && git add . && git commit -m "FDA RAG demo"
+git branch -M main
+# create a public repo, push to it, then:
+# repo Settings -> Pages -> Deploy from a branch -> main -> /(root)
+```
+Your site appears at `https://<your-username>.github.io/<repo>/`.
+
+If no model is connected, the app still runs in **evidence-only mode**: it retrieves and shows the
+cited sources, so it never hard-fails.
 
 ---
+
+## Project files
+
+| File | What it does |
+| --- | --- |
+| `index.html` | The page: layout, question box, the two answer columns, styling. |
+| `app.js` | Retrieval (BM25), calls the proxy for both answers, renders them with citations. |
+| `config.js` | One setting: your Worker URL. |
+| `corpus.js` | The knowledge base, the FDA documents it can search and cite. |
+| `scripts/fetch_corpus.mjs` | Pulls live openFDA data and rebuilds `corpus.js`. |
+| `cloudflare-worker.js` | The proxy that holds your key and calls the model in two modes. |
 
 ## Safety and limits
-- **Not medical advice.** The app only reports what public FDA sources say and refuses personal
-  medical decisions. Keep that framing in the room.
-- **Retrieval can miss.** BM25 matches words; if it grabs the wrong passage, the answer reflects that.
-  This is a useful teaching point, not a bug to hide.
-- **Free tiers rate-limit.** With many phones at once you may hit a limit; the app falls back to
-  evidence-only mode, which still teaches the lesson.
-- **Lock down CORS for real use.** In `cloudflare-worker.js`, replace the `*` origin with your Pages
-  origin so only your site can call the Worker.
-- Add embeddings later if you want semantic retrieval; BM25 is the robust default for a live demo.
+
+- **Not medical advice.** It only reports what public FDA sources say and refuses personal medical decisions.
+- **Retrieval can miss.** BM25 matches words, so if it grabs the wrong passage, the answer reflects that. That is a useful lesson, not a bug.
+- **Free tiers rate-limit.** Many users at once may hit a limit; the app falls back to showing the cited sources.
+- **Lock down CORS for real use.** In `cloudflare-worker.js`, replace the `*` origin with your Pages origin.
+- Want semantic retrieval? Swap BM25 for vector embeddings and a vector index. BM25 is the robust default for a small corpus and a live demo.
